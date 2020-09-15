@@ -66,7 +66,8 @@ def main():
 
 
 def inference(inference_loader, model, args):
-    global pred_visualize, palette, d, feats_history, label_history, weight_dense, weight_sparse
+    global pred_visualize, palette, d, feats_history, label_history, \
+        weight_dense, weight_sparse
     batch_time = AverageMeter()
     annotation_dir = os.path.join(args.data, 'DAVIS_val/Annotations/480p')
     annotation_list = sorted(os.listdir(annotation_dir))
@@ -82,20 +83,22 @@ def inference(inference_loader, model, args):
                     save_path = args.save
                     save_name = str(f).zfill(5)
                     video_name = annotation_list[last_video]
-                    save_prediction(np.asarray(pred_visualize[f - 1], dtype=np.int32),
+                    save_prediction(np.asarray(pred_visualize[f - 1],
+                                               dtype=np.int32),
                                     palette, save_path, save_name, video_name)
 
                 frame_idx = 0
-                print("End of video %d. Processing a new annotation..." % (last_video + 1))
+                print("End of video %d. Processing a new annotation..." %
+                      (last_video + 1))
             if frame_idx == 0:
                 input = input.to(device)
                 with torch.no_grad():
                     feats_history = model(input)
-                label_history, d, palette, weight_dense, weight_sparse = prepare_first_frame(curr_video,
-                                                                                                 args.save,
-                                                                                                 annotation_dir,
-                                                                                                 args.sigma1,
-                                                                                                 args.sigma2)
+                label_history, d, palette, weight_dense, weight_sparse = \
+                    prepare_first_frame(curr_video,
+                                        args.save,
+                                        annotation_dir,
+                                        args.sigma1, args.sigma2)
                 frame_idx += 1
                 last_video = curr_video
                 continue
@@ -111,8 +114,7 @@ def inference(inference_loader, model, args):
                                  weight_dense,
                                  weight_sparse,
                                  frame_idx,
-                                 args
-                                 )
+                                 args)
             # Store all frames' features
             new_label = idx2onehot(torch.argmax(prediction, 0), d).unsqueeze(1)
             label_history = torch.cat((label_history, new_label), 1)
@@ -122,10 +124,11 @@ def inference(inference_loader, model, args):
             frame_idx += 1
 
             # 1. upsample, 2. argmax
-            prediction = torch.nn.functional.interpolate(prediction.view(1, d, H_d, W_d),
-                                                         size=(H, W),
-                                                         mode='bilinear',
-                                                         align_corners=False)
+            prediction = torch.nn.functional.interpolate(
+                prediction.view(1, d, H_d, W_d),
+                size=(H, W),
+                mode='bilinear',
+                align_corners=False)
             prediction = torch.argmax(prediction, 1)  # (1, H, W)
 
             if frame_idx == 2:
@@ -138,7 +141,7 @@ def inference(inference_loader, model, args):
             if i % 10 == 0:
                 print('Validate: [{0}/{1}]\t'
                       'Time {batch_time.val:.3f} ({batch_time.avg:.3f})\t'.format(
-                    i, len(inference_loader), batch_time=batch_time))
+                          i, len(inference_loader), batch_time=batch_time))
         # save last video's prediction
         pred_visualize = pred_visualize.cpu().numpy()
         for f in range(1, frame_idx):
